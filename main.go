@@ -90,7 +90,7 @@ func generateRateText() string {
 			"• до 1000 USDT: %.2f RUB\n"+
 			"• 1000–5000 USDT: %.2f RUB\n"+
 			"• 5000–10000 USDT: %.2f RUB\n"+
-			"• 10000 USDT и выше: %.2f RUB"+
+			"• 10000 USDT и выше: %.2f RUB\n\ns"+
 			"обменник Cryptoclub ☎️ +7 (918) 813-28-15",
 		buy1, buy2, buy3, buy4,
 		sell1, sell2, sell3, sell4,
