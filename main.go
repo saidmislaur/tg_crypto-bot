@@ -74,11 +74,14 @@ func generateRateText() string {
 
 	sell1 := ask + 0.93
 	sell2 := ask + 0.83
-	sell3 := ask + 0.68
+	sell3 := ask + 0.67
 	sell4 := ask + 0.57
 
 	return fmt.Sprintf(
-		"КУРС USDT ↔️ RUB\n\n☛ МЫ ПОКУПАЕМ USDT У ВАС:\n"+
+		"КУРС USDT ↔️ RUB\n☛"+
+			"📍Назрань ул. Московская 4а"+
+			"📍Карабулак ул. Осканова 5а\n\n"+
+			"МЫ ПОКУПАЕМ USDT У ВАС:\n"+
 			"• до 1000 USDT: %.2f RUB\n"+
 			"• 1000–5000 USDT: %.2f RUB\n"+
 			"• 5000–10000 USDT: %.2f RUB\n"+
@@ -87,7 +90,8 @@ func generateRateText() string {
 			"• до 1000 USDT: %.2f RUB\n"+
 			"• 1000–5000 USDT: %.2f RUB\n"+
 			"• 5000–10000 USDT: %.2f RUB\n"+
-			"• 10000 USDT и выше: %.2f RUB",
+			"• 10000 USDT и выше: %.2f RUB"+
+			"обменник Cryptoclub ☎️ +7 (918) 813-28-15",
 		buy1, buy2, buy3, buy4,
 		sell1, sell2, sell3, sell4,
 	)
@@ -102,7 +106,7 @@ func main() {
 
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
-		log.Fatal("TELEGRAM_BOT_TOKEN не задан в .env")
+		log.Fatal("BOT_TOKEN не задан в .env")
 	}
 
 	bot, err := tgbotapi.NewBotAPI(token)
