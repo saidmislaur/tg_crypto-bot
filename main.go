@@ -67,15 +67,15 @@ func generateRateText() string {
 		return fmt.Sprintf("Ошибка получения курса: %v", err)
 	}
 
-	buy1 := bid - 0.65
-	buy2 := bid - 0.55
-	buy3 := bid - 0.45
-	buy4 := bid - 0.35
+	buy1 := bid - 0.40
+	buy2 := bid - 0.30
+	buy3 := bid - 0.20
+	buy4 := bid - 0.10
 
-	sell1 := ask + 0.93
-	sell2 := ask + 0.83
-	sell3 := ask + 0.67
-	sell4 := ask + 0.57
+	sell1 := ask + 0.67
+	sell2 := ask + 0.57
+	sell3 := ask + 0.47
+	sell4 := ask + 0.37
 
 	return fmt.Sprintf(
 		"КУРС USDT ↔️ RUB\n"+
