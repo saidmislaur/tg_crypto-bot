@@ -72,10 +72,10 @@ func generateRateText() string {
 	buy3 := bid - 0.27
 	buy4 := bid - 0.17
 
-	sell1 := ask + 1.09
-	sell2 := ask + 0.98
-	sell3 := ask + 0.89
-	sell4 := ask + 0.79
+	sell1 := ask + 1.25
+	sell2 := ask + 1.15
+	sell3 := ask + 1.05
+	sell4 := ask + 0.95
 
 	return fmt.Sprintf(
 		"КУРС USDT ↔️ RUB\n"+
