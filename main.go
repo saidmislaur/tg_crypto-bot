@@ -867,10 +867,37 @@ func handleAdminInput(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	sendAdminPanel(bot, message.Chat.ID)
 }
 
+func startHealthServer() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("crypto bot is running"))
+	})
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+
+	go func() {
+		addr := ":" + port
+		log.Printf("Health server listening on %s", addr)
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Printf("Health server stopped: %v", err)
+		}
+	}()
+}
+
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Не удалось загрузить .env, используем системные переменные")
 	}
+
+	startHealthServer()
 
 	configPath = os.Getenv("RATE_CONFIG_PATH")
 	if configPath == "" {
