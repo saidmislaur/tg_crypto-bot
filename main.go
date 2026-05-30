@@ -46,9 +46,6 @@ type RapiraRate struct {
 type RateConfig struct {
 	Title           string    `json:"title"`
 	Locations       []string  `json:"locations"`
-	ManualBid       float64   `json:"manual_bid"`
-	ManualAsk       float64   `json:"manual_ask"`
-	ForceManualRate bool      `json:"force_manual_rate"`
 	BuyAdjustments  []float64 `json:"buy_adjustments"`
 	SellAdjustments []float64 `json:"sell_adjustments"`
 	Signature       string    `json:"signature"`
@@ -75,9 +72,6 @@ func defaultConfig() RateConfig {
 		},
 		BuyAdjustments:  []float64{-0.47, -0.37, -0.27, -0.17},
 		SellAdjustments: []float64{0.53, 0.43, 0.33, 0.23},
-		ManualBid:       75.48,
-		ManualAsk:       76.08,
-		ForceManualRate: false,
 		Signature:       "обменник Cryptoclub ☎️ +7 (918) 813-28-15",
 		AboutText: `Мы Cryptoclub_zr
 Ваш надежный партнер в мире криптовалюты
@@ -118,12 +112,6 @@ func normalizeConfig(cfg *RateConfig) {
 	}
 	if len(cfg.SellAdjustments) != 4 {
 		cfg.SellAdjustments = defaults.SellAdjustments
-	}
-	if cfg.ManualBid <= 0 {
-		cfg.ManualBid = defaults.ManualBid
-	}
-	if cfg.ManualAsk <= 0 {
-		cfg.ManualAsk = defaults.ManualAsk
 	}
 	if strings.TrimSpace(cfg.Signature) == "" {
 		cfg.Signature = defaults.Signature
@@ -355,22 +343,7 @@ func fetchExternalRate() (bid, ask float64, err error) {
 }
 
 func getCurrentRate() (bid, ask float64, err error) {
-	cfg := getConfig()
-	if cfg.ForceManualRate && cfg.ManualBid > 0 && cfg.ManualAsk > 0 {
-		return cfg.ManualBid, cfg.ManualAsk, nil
-	}
-
-	bid, ask, err = fetchExternalRate()
-	if err == nil {
-		return bid, ask, nil
-	}
-
-	if cfg.ManualBid > 0 && cfg.ManualAsk > 0 {
-		log.Printf("не удалось получить курс автоматически, используем ручной курс: %v", err)
-		return cfg.ManualBid, cfg.ManualAsk, nil
-	}
-
-	return 0, 0, fmt.Errorf("автоматический курс недоступен, ручной курс не задан: %w", err)
+	return fetchExternalRate()
 }
 
 func generateRateText() string {
@@ -463,10 +436,6 @@ func adminPanelMarkup() tgbotapi.InlineKeyboardMarkup {
 func coursePanelMarkup() tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Базовый курс", "admin:edit:manual_rate"),
-			tgbotapi.NewInlineKeyboardButtonData("Ручной/авто", "admin:toggle_manual"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Покупка до 1000", "admin:edit:buy_0"),
 			tgbotapi.NewInlineKeyboardButtonData("Продажа до 1000", "admin:edit:sell_0"),
 		),
@@ -534,36 +503,43 @@ func formatVisibleRates(base float64, adjustments []float64) string {
 }
 
 func adminPanelText() string {
-	cfg := getConfig()
-	return fmt.Sprintf(
-		"Админ-панель\n\n"+
-			"Что хотите изменить?\n\n"+
-			"Курс: %s\n"+
-			"База: покупка %.2f / продажа %.2f\n\n"+
-			"Кнопка «Курс» меняет цифры.\n"+
-			"Кнопка «Тексты» меняет адреса и подпись.\n"+
-			"Кнопка «Предпросмотр» показывает сообщение как для клиента.",
-		rateModeText(cfg.ForceManualRate),
-		cfg.ManualBid,
-		cfg.ManualAsk,
-	)
+	return "Админ-панель\n\n" +
+		"Что хотите изменить?\n\n" +
+		"Кнопка «Курс» меняет прибавки и скидки по диапазонам.\n" +
+		"Сам базовый курс всегда приходит из Rapira API.\n" +
+		"Кнопка «Тексты» меняет адреса и подпись.\n" +
+		"Кнопка «Предпросмотр» показывает сообщение как для клиента."
 }
 
 func coursePanelText() string {
 	cfg := getConfig()
+	bid, ask, err := getCurrentRate()
+	if err != nil {
+		return fmt.Sprintf(
+			"Настройка курса\n\n"+
+				"Не удалось получить базовый курс из Rapira API:\n%v\n\n"+
+				"Текущие поправки сохранены:\n\n"+
+				"Покупка:\n%s\n\n"+
+				"Продажа:\n%s\n\n"+
+				"Нажмите нужную строку и отправьте одно число, например +0.95.",
+			err,
+			formatAdjustments("bid", cfg.BuyAdjustments),
+			formatAdjustments("ask", cfg.SellAdjustments),
+		)
+	}
+
 	return fmt.Sprintf(
 		"Настройка курса\n\n"+
-			"Режим: %s\n"+
-			"Базовый курс: покупка %.2f / продажа %.2f\n\n"+
+			"Источник базового курса: Rapira API\n"+
+			"Курс Rapira: покупка %.2f / продажа %.2f\n\n"+
 			"Что видит клиент:\n\n"+
 			"МЫ ПОКУПАЕМ USDT У ВАС:\n%s\n\n"+
 			"МЫ ПРОДАЕМ USDT ВАМ:\n%s\n\n"+
 			"Число в скобках — это прибавка к базовому курсу. Нажмите нужную строку и отправьте одно число, например +0.95.",
-		rateModeText(cfg.ForceManualRate),
-		cfg.ManualBid,
-		cfg.ManualAsk,
-		formatVisibleRates(cfg.ManualBid, cfg.BuyAdjustments),
-		formatVisibleRates(cfg.ManualAsk, cfg.SellAdjustments),
+		bid,
+		ask,
+		formatVisibleRates(bid, cfg.BuyAdjustments),
+		formatVisibleRates(ask, cfg.SellAdjustments),
 	)
 }
 
@@ -579,13 +555,6 @@ func textPanelText() string {
 		strings.Join(cfg.Locations, "\n"),
 		cfg.Signature,
 	)
-}
-
-func rateModeText(forceManual bool) string {
-	if forceManual {
-		return "ручной"
-	}
-	return "авто с ручным резервом"
 }
 
 func sendAdminPanel(bot *tgbotapi.BotAPI, chatID int64) {
@@ -650,16 +619,6 @@ func handleAdminCallback(bot *tgbotapi.BotAPI, query *tgbotapi.CallbackQuery, ad
 	case "admin:preview":
 		sendRatePreview(bot, query.Message.Chat.ID)
 		return
-	case "admin:toggle_manual":
-		cfg := getConfig()
-		cfg.ForceManualRate = !cfg.ForceManualRate
-		if err := updateConfig(cfg); err != nil {
-			msg := tgbotapi.NewMessage(query.Message.Chat.ID, fmt.Sprintf("Не удалось изменить режим курса: %v", err))
-			bot.Send(msg)
-			return
-		}
-		sendCoursePanel(bot, query.Message.Chat.ID)
-		return
 	}
 
 	if !strings.HasPrefix(query.Data, "admin:edit:") {
@@ -699,8 +658,6 @@ func adminPrompt(field string) string {
 		return "Отправьте 4 поправки для покупки через пробел.\nПорядок: до 1000, 1000–5000, 5000–10000, 10000+.\n\nНапример: -0.47 -0.37 -0.27 -0.17"
 	case "sell":
 		return "Отправьте 4 поправки для продажи через пробел.\nПорядок: до 1000, 1000–5000, 5000–10000, 10000+.\n\nНапример: +0.53 +0.43 +0.33 +0.23"
-	case "manual_rate":
-		return "Отправьте базовый курс покупки и продажи через пробел.\nПервое число — покупка, второе — продажа.\n\nНапример: 75.48 76.08"
 	case "signature":
 		return "Отправьте новую подпись в конце сообщения курса.\nНапример: обменник Cryptoclub ☎️ +7 (918) 813-28-15"
 	case "about":
@@ -782,7 +739,7 @@ func nonEmptyLines(text string) []string {
 }
 
 func isCourseField(field string) bool {
-	if field == "buy" || field == "sell" || field == "manual_rate" {
+	if field == "buy" || field == "sell" {
 		return true
 	}
 	_, _, _, ok := adjustmentFieldInfo(field)
@@ -828,8 +785,6 @@ func handleAdminInput(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			cfg.BuyAdjustments, err = parseFourFloats(text)
 		case "sell":
 			cfg.SellAdjustments, err = parseFourFloats(text)
-		case "manual_rate":
-			cfg.ManualBid, cfg.ManualAsk, err = parseTwoFloats(text)
 		case "signature":
 			cfg.Signature = text
 		case "about":

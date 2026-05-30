@@ -4,9 +4,6 @@
     "📍Назрань ул. Московская 4а",
     "📍Карабулак ул. Джабагиева 2а"
   ],
-  "manual_bid": 75.48,
-  "manual_ask": 76.08,
-  "force_manual_rate": false,
   "buy_adjustments": [
     -0.47,
     -0.45,
