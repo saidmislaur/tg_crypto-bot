@@ -31,6 +31,18 @@ type Rates map[string]struct {
 	Buy  string `json:"buy"`
 }
 
+type RapiraRatesResponse struct {
+	Data    []RapiraRate `json:"data"`
+	Code    int          `json:"code"`
+	Message string       `json:"message"`
+}
+
+type RapiraRate struct {
+	Symbol   string  `json:"symbol"`
+	AskPrice float64 `json:"askPrice"`
+	BidPrice float64 `json:"bidPrice"`
+}
+
 type RateConfig struct {
 	Title           string    `json:"title"`
 	Locations       []string  `json:"locations"`
@@ -65,7 +77,7 @@ func defaultConfig() RateConfig {
 		SellAdjustments: []float64{0.53, 0.43, 0.33, 0.23},
 		ManualBid:       75.48,
 		ManualAsk:       76.08,
-		ForceManualRate: true,
+		ForceManualRate: false,
 		Signature:       "обменник Cryptoclub ☎️ +7 (918) 813-28-15",
 		AboutText: `Мы Cryptoclub_zr
 Ваш надежный партнер в мире криптовалюты
@@ -321,38 +333,25 @@ func fetchOrderBookRate(client *http.Client, url string) (bid, ask float64, err 
 
 func fetchExternalRate() (bid, ask float64, err error) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	sources := []struct {
-		name string
-		fn   func(*http.Client) (float64, float64, error)
-	}{
-		{"old rates", fetchLegacyRate},
-		{"tickers all", func(client *http.Client) (float64, float64, error) {
-			return fetchTickerRate(client, "https://grinex.io/api/v2/peatio/public/markets/tickers")
-		}},
-		{"ticker usdtrub", func(client *http.Client) (float64, float64, error) {
-			return fetchTickerRate(client, "https://grinex.io/api/v2/peatio/public/markets/usdtrub/tickers")
-		}},
-		{"ticker usdta7a5", func(client *http.Client) (float64, float64, error) {
-			return fetchTickerRate(client, "https://grinex.io/api/v2/peatio/public/markets/usdta7a5/tickers")
-		}},
-		{"orderbook usdtrub", func(client *http.Client) (float64, float64, error) {
-			return fetchOrderBookRate(client, "https://grinex.io/api/v2/finex/public/markets/usdtrub/order-book?limit=1")
-		}},
-		{"orderbook usdta7a5", func(client *http.Client) (float64, float64, error) {
-			return fetchOrderBookRate(client, "https://grinex.io/api/v2/finex/public/markets/usdta7a5/order-book?limit=1")
-		}},
+	var response RapiraRatesResponse
+	if err := fetchJSON(client, "https://api.rapira.net/open/market/rates", &response); err != nil {
+		return 0, 0, err
+	}
+	if response.Code != 0 {
+		return 0, 0, fmt.Errorf("Rapira вернула код %d: %s", response.Code, response.Message)
 	}
 
-	var problems []string
-	for _, source := range sources {
-		bid, ask, err := source.fn(client)
-		if err == nil {
-			return bid, ask, nil
+	for _, rate := range response.Data {
+		if rate.Symbol != "USDT/RUB" {
+			continue
 		}
-		problems = append(problems, fmt.Sprintf("%s: %v", source.name, err))
+		if rate.BidPrice <= 0 || rate.AskPrice <= 0 {
+			return 0, 0, fmt.Errorf("Rapira вернула некорректный USDT/RUB: bid %.2f, ask %.2f", rate.BidPrice, rate.AskPrice)
+		}
+		return rate.BidPrice, rate.AskPrice, nil
 	}
 
-	return 0, 0, errors.New(strings.Join(problems, "; "))
+	return 0, 0, errors.New("Rapira не вернула пару USDT/RUB")
 }
 
 func getCurrentRate() (bid, ask float64, err error) {

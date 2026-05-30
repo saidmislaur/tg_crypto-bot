@@ -6,7 +6,7 @@
   ],
   "manual_bid": 75.48,
   "manual_ask": 76.08,
-  "force_manual_rate": true,
+  "force_manual_rate": false,
   "buy_adjustments": [
     -0.47,
     -0.45,
